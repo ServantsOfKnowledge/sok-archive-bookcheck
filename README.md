@@ -13,6 +13,7 @@ Built by [ServantsOfKnowledge](https://research.servantsofknowledge.in) to speed
 - **Fuzzy title and author fallback** with a 0–1 confidence score.
 - **CSV output**: one row per input line, with match status, Archive link and runner-up candidates.
 - **Web app** with IA cover thumbnails, ✓/✗ manual verification, click-to-swap alternate matches, and filters.
+- **Import a results CSV** back into the web app later (from the web app or the CLI) to review it with covers and ✓/✗.
 - **Saved runs**: every web run is stored in a local SQLite file, so you can reopen, rename or delete it later.
 - **No dependencies** beyond Python 3 and the `ia` command-line tool.
 

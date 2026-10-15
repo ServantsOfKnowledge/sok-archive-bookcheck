@@ -3,6 +3,8 @@
 
 Run: python3 webapp.py [port]  ->  http://127.0.0.1:8765
 """
+import csv
+import io
 import json
 import re
 import sqlite3
@@ -54,6 +56,31 @@ def row_obj(r):
     return d
 
 
+def import_csv(text, name):
+    """Create a run from a CSV previously exported by this app (or bookcheck.py)."""
+    rdr = csv.DictReader(io.StringIO(text.lstrip("\ufeff")))
+    if not rdr.fieldnames or not {"input_title", "status"} <= set(rdr.fieldnames):
+        raise ValueError("Not a results CSV: expected input_title and status columns")
+    rows = []
+    for r in rdr:
+        d = {c: (r.get(c) or "") for c in bc.COLUMNS}
+        d["score"] = float(d["score"] or 0)
+        d["num_candidates"] = int(d["num_candidates"] or 0)
+        ids = ([d["ia_identifier"]] if d["ia_identifier"] else []) + d["other_candidates"].split()
+        d["candidates"] = [{"identifier": i, "title": d["ia_title"] if i == d["ia_identifier"] else "",
+                            "creator": d["ia_creator"] if i == d["ia_identifier"] else "",
+                            "year": d["ia_year"] if i == d["ia_identifier"] else "",
+                            "mediatype": d["ia_mediatype"] if i == d["ia_identifier"] else ""} for i in ids]
+        v = (r.get("verdict") or "").strip()
+        rows.append((d, v if v in ("ok", "no") else ""))
+    with db() as c:
+        run_id = c.execute("INSERT INTO runs(name, created_at, total) VALUES(?,?,?)",
+                           (name, datetime.now().isoformat(timespec="seconds"), len(rows))).lastrowid
+        c.executemany("INSERT INTO rows(run_id, idx, data, verdict) VALUES(?,?,?,?)",
+                      [(run_id, i, json.dumps(d), v) for i, (d, v) in enumerate(rows)])
+    return run_id
+
+
 PAGE = r"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ServantsOfKnowledge · Archive Book Check</title>
@@ -88,6 +115,7 @@ a{color:var(--acc)}
 <p class="sub">Paste one book per line (<code>Title | Author | ISBN</code>, free text, or CSV with a header). Each run is saved so you can reopen it later.</p>
 <div class="bar">
  <select id="runs" style="min-width:260px"></select>
+ <label class="btn" title="Reopen a results CSV you downloaded earlier">Import CSV<input id="imp" type="file" accept=".csv,text/csv" hidden></label>
  <button id="ren">Rename</button><button id="del">Delete</button>
 </div>
 <textarea id="in" placeholder="Pride and Prejudice | Jane Austen | 9780141439518&#10;Gitanjali by Rabindranath Tagore&#10;Moby Dick by Herman Melville 0142437247"></textarea>
@@ -113,7 +141,7 @@ const $=id=>document.getElementById(id);let runId=null,rows=[];
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const img=(id,cls)=>`<img class="${cls}" loading="lazy" src="https://archive.org/services/img/${encodeURIComponent(id)}" alt="" onerror="this.style.opacity=.2">`;
 const stamp=()=>"Run "+new Date().toLocaleString("sv").slice(0,16);
-async function api(method,url,body){const r=await fetch(url,{method,body:body===undefined?undefined:JSON.stringify(body)});if(!r.ok)throw new Error(await r.text());return r.json()}
+async function api(method,url,body,raw){const r=await fetch(url,{method,body:body===undefined?undefined:raw?body:JSON.stringify(body)});if(!r.ok)throw new Error(await r.text());return r.json()}
 
 function rowHtml(r){
  const alts=(r.candidates||[]).filter(c=>c.identifier!==r.ia_identifier).slice(0,4);
@@ -154,6 +182,9 @@ $("ren").onclick=async()=>{if(!runId)return;const n=prompt("New name",$("name").
 $("del").onclick=async()=>{if(!runId||!confirm("Delete this run and its results?"))return;
  await api("DELETE","/api/runs/"+runId);runId=null;rows=[];$("body").innerHTML="";$("sum").textContent="";$("dl").disabled=true;loadRuns()};
 
+$("imp").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;
+ try{const r=await api("POST","/api/import?name="+encodeURIComponent(f.name.replace(/\.\w+$/,"")),await f.text(),true);
+  await loadRuns(r.run);$("runs").onchange()}catch(err){alert("Import failed: "+err.message)}};
 $("file").onchange=async e=>{const f=e.target.files[0];if(f){$("in").value=await f.text();if(!$("name").value)$("name").value=f.name.replace(/\.\w+$/,"")}};
 $("go").onclick=async()=>{
  if(!$("in").value.trim())return;
@@ -230,6 +261,12 @@ class Handler(BaseHTTPRequestHandler):
         if url.path == "/api/check":
             return self._check(url)
         text = self._body()
+        if url.path == "/api/import":
+            name = (parse_qs(url.query).get("name", [""])[0] or "Imported CSV").strip()
+            try:
+                return self._json({"run": import_csv(text, name)})
+            except (ValueError, KeyError) as e:
+                return self._json({"error": str(e)}, 400)
         data = json.loads(text) if text else {}
         if m := re.fullmatch(r"/api/runs/(\d+)", url.path):
             with db() as c:

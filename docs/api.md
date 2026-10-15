@@ -13,6 +13,7 @@
 | `POST /api/runs/{id}` | rename. Body: `{"name": "…"}` |
 | `DELETE /api/runs/{id}` | delete a run and its rows |
 | `POST /api/check?name=…&any=0\|1` | create a run from the request body (the pasted text) and stream results |
+| `POST /api/import?name=…` | create a run from a results CSV sent as the request body. Returns `{"run": id}`; `400` if the columns are wrong |
 | `POST /api/rows/{id}` | update a row. Body: `{"verdict": "ok"\|"no"\|""}` and/or `{"pick": "<identifier>"}` |
 
 ### Streaming check

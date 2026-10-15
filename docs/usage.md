@@ -55,6 +55,7 @@ The CLI writes UTF-8 with a BOM so Excel opens non-ASCII names correctly.
 
 - **Run name**: defaults to a timestamp, or the uploaded file's name. Change it before clicking **Check books**.
 - **Saved runs** dropdown: reopens any previous run with its verdicts. **Rename** and **Delete** act on the open run.
+- **Import CSV**: loads a results CSV you downloaded earlier (from the web app or `bookcheck.py`) as a new saved run, so you can review it with covers and verdicts later. A `verdict` column, if present, is restored. The CSV must have `input_title` and `status` columns. Runner-up candidates come back from `other_candidates`, so they show covers but not titles until you pick one.
 - **Cover column**: the Archive's own thumbnail for the best match. Click it to open the item. Greyed-out covers mean the item has no image.
 - **Smaller covers under a match**: runner-up candidates. Click one to use it instead (status becomes `possible`, `match_by` becomes `manual`).
 - **✓ / ✗**: mark a match correct or wrong. Click again to clear.
