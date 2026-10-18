@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ServantsOfKnowledge · Archive Book Check</title>
+<link rel="icon" type="image/png" href="static/favicon.png">
+<style>
+:root{--bg:#fafaf8;--fg:#1c1c1a;--mut:#6b6b66;--card:#fff;--bd:#dddcd6;--acc:#9a6b1f;--ok:#1f7a3d;--warn:#a86a00;--bad:#8a8a85;--err:#b3261e;--okbg:#e8f5ec;--rejbg:#fbeaea}
+@media(prefers-color-scheme:dark){:root{--bg:#161615;--fg:#ecebe6;--mut:#9a9a93;--card:#202020;--bd:#363632;--acc:#e0b25a;--ok:#5fd18a;--warn:#e0a63a;--bad:#8a8a85;--err:#ff8a80;--okbg:#17301f;--rejbg:#3a1f1f}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif}
+main{max-width:1150px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:22px;margin:0 0 4px}p.sub{color:var(--mut);margin:0 0 16px}
+textarea,input[type=text],select{padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--fg);font:inherit}
+textarea{width:100%;height:160px;font:13px/1.5 ui-monospace,monospace;resize:vertical}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0}
+button,label.btn{padding:8px 14px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--fg);font:inherit;cursor:pointer}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff}@media(prefers-color-scheme:dark){button.pri{color:#1a1206}}
+.brand{display:flex;align-items:center;gap:14px;margin-bottom:14px}.brand img{width:56px;height:56px;border-radius:50%}.brand h1{margin:0;font-size:22px;line-height:1.2}.brand p{margin:0;color:var(--mut)}button:disabled{opacity:.5;cursor:default}
+#prog{flex:1;min-width:120px;height:8px;background:var(--bd);border-radius:4px;overflow:hidden}#prog i{display:block;height:100%;width:0;background:var(--acc);transition:width .2s}
+#sum{color:var(--mut)}
+.wrap{overflow-x:auto;border:1px solid var(--bd);border-radius:8px;background:var(--card);margin-top:8px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--bd);vertical-align:top}
+th{background:var(--card);color:var(--mut);font-weight:600;white-space:nowrap}
+tr.v-ok td{background:var(--okbg)}tr.v-no td{background:var(--rejbg)}
+.s{font-weight:600}.s.match{color:var(--ok)}.s.possible,.s.weak{color:var(--warn)}.s.not_found{color:var(--bad)}.s.error{color:var(--err)}
+.mut{color:var(--mut);font-size:12.5px}
+.thumb{width:72px;height:100px;object-fit:contain;background:var(--bd);border-radius:4px;display:block}
+.alts{display:flex;gap:4px;margin-top:6px}.alts img{width:34px;height:48px;object-fit:contain;background:var(--bd);border-radius:3px;cursor:pointer;border:1px solid transparent}.alts img:hover{border-color:var(--acc)}
+.vb{display:flex;gap:6px}.vb button{padding:4px 10px;font-size:16px}.vb button.on.y{background:var(--ok);color:#fff;border-color:var(--ok)}.vb button.on.n{background:var(--err);color:#fff;border-color:var(--err)}
+.none{width:72px;height:100px;border:1px dashed var(--bd);border-radius:4px;display:grid;place-items:center;color:var(--mut);font-size:11px}
+a{color:var(--acc)}
+.foot{margin-top:28px;color:var(--mut);font-size:13px}
+</style></head><body><main>
+<div class="brand"><img src="static/sok-logo.png" alt="ServantsOfKnowledge"><div><h1>ServantsOfKnowledge</h1><p>Archive Book Check</p></div></div>
+<p class="sub">Paste one book per line (<code>Title | Author | ISBN</code>, free text, or CSV with a header). Everything runs in your browser; runs are saved on this device only, so download a CSV to keep or move them. Keep this tab open while a run is in progress.</p>
+<div class="bar">
+ <select id="runs" style="min-width:260px"></select>
+ <label class="btn" title="Reopen a results CSV you downloaded earlier">Import CSV<input id="imp" type="file" accept=".csv,text/csv" hidden></label>
+ <button id="ren">Rename</button><button id="del">Delete</button>
+</div>
+<textarea id="in" placeholder="Pride and Prejudice | Jane Austen | 9780141439518&#10;Gitanjali by Rabindranath Tagore&#10;Moby Dick by Herman Melville 0142437247"></textarea>
+<div class="bar">
+ <input type="text" id="name" placeholder="Run name" size="26">
+ <button class="pri" id="go">Check books</button><button id="stop" hidden>Stop</button>
+ <label class="btn">Load file<input id="file" type="file" accept=".txt,.csv,text/*" hidden></label>
+ <label><input type="checkbox" id="any"> any media type</label>
+ <div id="prog"><i></i></div><span id="sum"></span>
+</div>
+<div class="bar">
+ <select id="filter">
+  <option value="all">Show all</option><option value="todo">Needs review</option>
+  <option value="ok">Verified</option><option value="no">Rejected</option><option value="nf">Not found</option>
+ </select>
+ <button id="dl" disabled>Download CSV</button>
+</div>
+<div class="wrap"><table><thead><tr><th>Cover</th><th>Your input</th><th>Result</th><th>Archive match</th><th>Verify</th></tr></thead><tbody id="body"></tbody></table></div>
+</main>
+<script src="bookcheck.js"></script>
+<script>
+const CSV_COLS=BC.COLUMNS.concat(["verdict"]);
+const $=id=>document.getElementById(id);let runId=null,rows=[],stopReq=false;
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const img=(id,cls)=>`<img class="${cls}" loading="lazy" src="https://archive.org/services/img/${encodeURIComponent(id)}" alt="" onerror="this.style.opacity=.2">`;
+const stamp=()=>"Run "+new Date().toLocaleString("sv").slice(0,16);
+
+/* ---------- storage: IndexedDB (runs + rows) ---------- */
+const idb=new Promise((res,rej)=>{const q=indexedDB.open("sok-bookcheck",1);
+ q.onupgradeneeded=()=>{const d=q.result;d.createObjectStore("runs",{keyPath:"id",autoIncrement:true});
+  d.createObjectStore("rows",{keyPath:"id",autoIncrement:true}).createIndex("run_id","run_id")};
+ q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});
+const rq=r=>new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const S=async(n,m="readonly")=>(await idb).transaction(n,m).objectStore(n);
+const DB={
+ async addRun(name,total){return rq((await S("runs","readwrite")).add({name,total,created_at:new Date().toISOString()}))},
+ async addRow(r){return rq((await S("rows","readwrite")).add(r))},
+ async putRow(r){return rq((await S("rows","readwrite")).put(r))},
+ async listRuns(){const runs=await rq((await S("runs")).getAll()),all=await rq((await S("rows")).getAll());
+  return runs.map(r=>{const mine=all.filter(x=>x.run_id===r.id);return {...r,n:mine.length,verified:mine.filter(x=>x.verdict==="ok").length}}).sort((a,b)=>b.id-a.id)},
+ async getRun(id){const run=await rq((await S("runs")).get(id));
+  const rs=await rq((await S("rows")).index("run_id").getAll(id));return {...run,rows:rs.sort((a,b)=>a.idx-b.idx)}},
+ async rename(id,name){const s=await S("runs","readwrite"),r=await rq(s.get(id));r.name=name;await rq(s.put(r))},
+ async remove(id){const rs=await S("rows","readwrite"),keys=await rq(rs.index("run_id").getAllKeys(id));
+  await Promise.all(keys.map(k=>rq(rs.delete(k))));await rq((await S("runs","readwrite")).delete(id))},
+};
+
+/* ---------- rendering ---------- */
+function rowHtml(r){
+ const alts=(r.candidates||[]).filter(c=>c.identifier!==r.ia_identifier).slice(0,4);
+ return `<td>${r.ia_identifier?`<a href="${esc(r.ia_url)}" target="_blank" rel="noopener">${img(r.ia_identifier,"thumb")}</a>`:'<div class="none">no match</div>'}</td>
+ <td><b>${esc(r.input_title)}</b><div class="mut">${esc(r.input_author)}</div><div class="mut">${esc(r.input_isbn)}</div></td>
+ <td><span class="s ${esc(r.status)}">${esc(r.status)}</span><div class="mut">${esc(r.match_by)} ${r.score?("· "+r.score):""}</div></td>
+ <td>${r.ia_identifier?`<a href="${esc(r.ia_url)}" target="_blank" rel="noopener">${esc(r.ia_title)}</a>
+   <div class="mut">${esc(r.ia_creator)} ${r.ia_year?("· "+esc(r.ia_year)):""}</div><div class="mut">${esc(r.ia_identifier)}</div>`:""}
+   ${alts.length?`<div class="alts" title="Click to use this one instead">${alts.map(c=>`<img loading="lazy" data-pick="${esc(c.identifier)}" title="${esc(c.title)} — ${esc(c.creator)} ${esc(c.year)}" src="https://archive.org/services/img/${encodeURIComponent(c.identifier)}" alt="">`).join("")}</div>`:""}</td>
+ <td><div class="vb"><button class="y ${r.verdict==="ok"?"on":""}" data-v="ok" title="Correct match">✓</button><button class="n ${r.verdict==="no"?"on":""}" data-v="no" title="Wrong match">✗</button></div></td>`}
+function matchesFilter(r){const f=$("filter").value;
+ return f==="all"||(f==="todo"&&!r.verdict&&r.status!=="not_found")||(f==="ok"&&r.verdict==="ok")||(f==="no"&&r.verdict==="no")||(f==="nf"&&r.status==="not_found")}
+function paint(tr,r){tr.className=r.verdict==="ok"?"v-ok":r.verdict==="no"?"v-no":"";tr.innerHTML=rowHtml(r);tr.hidden=!matchesFilter(r)}
+function addRow(r){rows.push(r);const tr=document.createElement("tr");tr.dataset.id=r.id;paint(tr,r);$("body").appendChild(tr)}
+function summary(){const c={};rows.forEach(r=>c[r.status]=(c[r.status]||0)+1);
+ const v=rows.filter(r=>r.verdict==="ok").length,x=rows.filter(r=>r.verdict==="no").length;
+ return `${rows.length} books · `+Object.entries(c).map(([k,n])=>k+" "+n).join(", ")+` · verified ${v}, rejected ${x}`}
+
+$("body").onclick=async e=>{
+ const tr=e.target.closest("tr");if(!tr)return;const r=rows.find(x=>x.id==tr.dataset.id);
+ const v=e.target.closest("button")?.dataset.v,pick=e.target.dataset.pick;
+ if(v)r.verdict=r.verdict===v?"":v;
+ else if(pick){const c=r.candidates.find(x=>x.identifier===pick);if(!c)return;
+  Object.assign(r,{ia_identifier:c.identifier,ia_url:"https://archive.org/details/"+c.identifier,ia_title:c.title,ia_creator:c.creator,ia_year:c.year,ia_mediatype:c.mediatype,match_by:"manual",status:"possible",score:0})}
+ else return;
+ await DB.putRow(r);paint(tr,r);$("sum").textContent=summary()};
+$("filter").onchange=()=>[...$("body").children].forEach(tr=>tr.hidden=!matchesFilter(rows.find(x=>x.id==tr.dataset.id)));
+
+/* ---------- saved runs ---------- */
+async function loadRuns(select){
+ const list=await DB.listRuns();
+ $("runs").innerHTML='<option value="">— saved runs —</option>'+list.map(r=>`<option value="${r.id}">${esc(r.name)} (${r.n} books, ${r.verified} verified)</option>`).join("");
+ if(select)$("runs").value=select}
+$("runs").onchange=async()=>{const id=+$("runs").value;if(!id)return;
+ const d=await DB.getRun(id);runId=d.id;$("name").value=d.name;rows=[];$("body").innerHTML="";
+ d.rows.forEach(addRow);$("sum").textContent=summary();$("prog").firstChild.style.width="100%";$("dl").disabled=!rows.length};
+$("ren").onclick=async()=>{if(!runId)return;const n=prompt("New name",$("name").value);if(!n)return;
+ await DB.rename(runId,n);$("name").value=n;loadRuns(runId)};
+$("del").onclick=async()=>{if(!runId||!confirm("Delete this run and its results?"))return;
+ await DB.remove(runId);runId=null;rows=[];$("body").innerHTML="";$("sum").textContent="";$("dl").disabled=true;loadRuns()};
+
+/* ---------- import / load ---------- */
+$("imp").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;
+ try{const [head,...body]=BC.parseCSV(await f.text());
+  const keys=(head||[]).map(h=>h.trim());
+  if(!keys.includes("input_title")||!keys.includes("status"))throw new Error("Not a results CSV: expected input_title and status columns");
+  const id=await DB.addRun(f.name.replace(/\.\w+$/,""),body.length);
+  for(const [i,cells] of body.entries()){const rec={};keys.forEach((k,j)=>rec[k]=cells[j]||"");
+   await DB.addRow({run_id:id,idx:i,...BC.rowFromCSV(rec)})}
+  await loadRuns(id);$("runs").onchange()}catch(err){alert("Import failed: "+err.message)}};
+$("file").onchange=async e=>{const f=e.target.files[0];if(f){$("in").value=await f.text();if(!$("name").value)$("name").value=f.name.replace(/\.\w+$/,"")}};
+
+/* ---------- run ---------- */
+$("stop").onclick=()=>{stopReq=true;$("stop").disabled=true};
+$("go").onclick=async()=>{
+ const books=BC.parseInput($("in").value);if(!books.length)return;
+ const name=$("name").value.trim()||stamp();$("name").value=name;
+ rows=[];$("body").innerHTML="";$("dl").disabled=true;$("go").disabled=true;stopReq=false;
+ $("stop").hidden=false;$("stop").disabled=false;$("prog").firstChild.style.width="0";$("sum").textContent="Starting…";
+ try{runId=await DB.addRun(name,books.length);
+  for(const [idx,b] of books.entries()){
+   if(stopReq)break;
+   const r={run_id:runId,idx,...BC.rowFor(b,await BC.check(b,!$("any").checked)),verdict:""};
+   r.id=await DB.addRow(r);addRow(r);
+   $("prog").firstChild.style.width=(100*rows.length/books.length)+"%";$("sum").textContent=`${rows.length}/${books.length} · `+summary();
+   await BC.sleep(300)}
+ }catch(e){$("sum").textContent="Error: "+e.message}
+ $("stop").hidden=true;$("go").disabled=false;$("dl").disabled=!rows.length;$("sum").textContent=summary();loadRuns(runId)};
+
+$("dl").onclick=()=>{const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+ const csv="﻿"+[CSV_COLS.join(","),...rows.map(r=>CSV_COLS.map(c=>q(r[c])).join(","))].join("\r\n");
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+ a.download=($("name").value||"book_matches").replace(/[^\w.-]+/g,"_")+".csv";a.click()};
+loadRuns();
+</script></body></html>

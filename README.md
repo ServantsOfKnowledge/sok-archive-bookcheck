@@ -17,7 +17,18 @@ Built by [ServantsOfKnowledge](https://research.servantsofknowledge.in) to speed
 - **Saved runs**: every web run is stored in a local SQLite file, so you can reopen, rename or delete it later.
 - **No dependencies** beyond Python 3 and the `ia` command-line tool.
 
-## Requirements
+## Two ways to run it
+
+| | Python app (`webapp.py`) | Static site (`site/`, GitHub Pages) |
+|---|---|---|
+| Needs | Python 3 + `ia` CLI | just a browser |
+| Search | `ia search` on your machine | Archive search API called from the page |
+| Saved runs | SQLite file `books.db` | IndexedDB in your browser (this device only) |
+| Best for | big batches, scripting, the CLI | quick checks, sharing a link with colleagues |
+
+The hosted version lives at **https://servantsofknowledge.github.io/sok-archive-bookcheck/**. Both versions use the same matching rules and the same CSV format, so a CSV from one can be imported into the other.
+
+## Requirements (Python app)
 
 - Python 3.9 or newer (developed on 3.14)
 - The Internet Archive CLI, `ia`:
@@ -88,10 +99,12 @@ A `match` means the item **exists** on the Archive. It does not mean the book is
 - [Usage guide](docs/usage.md): input formats, output columns, web app workflow, tips
 - [How matching works](docs/matching.md): search strategy, scoring, known limits
 - [Web app API and data model](docs/api.md): HTTP endpoints and the SQLite schema
+- [Static site](docs/static-site.md): the GitHub Pages version and how it differs
 
 ## Project layout
 
 ```text
+site/             static browser version (index.html + bookcheck.js), deployed to GitHub Pages
 bookcheck.py      matching engine and CLI (standard library only)
 webapp.py         local web UI, JSON API and SQLite storage (imports bookcheck)
 sample_books.txt  example input
